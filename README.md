@@ -1,2 +1,2 @@
-# PCG_Project
-Final Project for PCG - PacMan
+# PacmanGodot
+Classic Pacman like gameplay in the Godot engine.
