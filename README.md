@@ -5,7 +5,7 @@ Below is a complete summary of all functionality added across enemies, pellets, 
 
 ---
 
-# ## ⚙️ 1. Enemy PCG System  
+# ⚙️ 1. Enemy PCG System  
 A dedicated **PCG Manager** and **Enemy PCG Factory** were added to procedurally configure enemies every run.
 
 ### **Procedurally Controlled Enemy Parameters**
@@ -24,7 +24,7 @@ These parameters are generated every game start, producing unique and dynamic en
 
 ---
 
-# ## ⚔️ 2. Assassin Teleportation PCG System  
+# ⚔️ 2. Assassin Teleportation PCG System  
 The Assassin enemy was extended with a **new advanced teleportation system**, fully driven by PCG parameters.
 
 ### **Teleport Behavior Features**
@@ -53,7 +53,7 @@ A custom teleport sound file plays on successful teleport.
 
 ---
 
-# ## 🟡 3. Rare Golden Pellets System  
+# 🟡 3. Rare Golden Pellets System  
 Normal pellets were expanded into a new **Rare Pellet System**, including:
 
 ### **PCG Rare Pellet Placement**
@@ -83,7 +83,7 @@ pellet.modulate = Color(1.0, 0.84, 0.0)
 
 ---
 
-# ## ⚡ 4. Rare Pellet Buff System  
+# ⚡ 4. Rare Pellet Buff System  
 Collecting a rare pellet grants **temporary buffs**, with duration scaling by difficulty.
 
 ### **Buff Duration**
@@ -113,7 +113,7 @@ Added to `global.gd`:
 
 ---
 
-# ## 👻 5. Ghost Slowdown During Rare Buff  
+# 👻 5. Ghost Slowdown During Rare Buff  
 All enemies respond to the rare pellet buff:
 
 - Their movement speeds are lowered proportionally.
@@ -123,7 +123,7 @@ Enemy movement logic was updated to support buffed and unbuffed states.
 
 ---
 
-# ## 🔢 6. Golden Score Popup System  
+# 🔢 6. Golden Score Popup System  
 When picking a rare pellet:
 
 - A **golden floating score number** appears above the player.
@@ -140,7 +140,7 @@ Handled inside `player.gd`.
 
 ---
 
-# ## 🧩 7. Fixes & Refactors Implemented  
+# 🧩 7. Fixes & Refactors Implemented  
 The PCG systems introduced several necessary internal improvements:
 
 ### **Fixes & Stabilization**
@@ -160,7 +160,7 @@ The PCG systems introduced several necessary internal improvements:
 
 ---
 
-# ## 🎮 8. Enhanced Gameplay & Visual Feedback  
+# 🎮 8. Enhanced Gameplay & Visual Feedback  
 Additional polishing and functional upgrades:
 
 - Teleportation warning flash & teleport sound.
@@ -172,7 +172,7 @@ Additional polishing and functional upgrades:
 
 ---
 
-# ## 🏗️ 9. Codebase Architecture Upgrades  
+# 🏗️ 9. Codebase Architecture Upgrades  
 To support new gameplay systems:
 
 ### **PCGManager**
@@ -189,7 +189,7 @@ Global emits buff and score events to avoid spaghetti references and keep system
 
 ---
 
-# ## 📌 Summary  
+# 📌 Summary  
 The project now includes:
 
 ✔ Fully dynamic enemy behavior through PCG  
