@@ -36,6 +36,16 @@ var difficulty_params := {
 
 		"spawn_delay_min": 0.0,
 		"spawn_delay_max": 0.5,
+		
+		# No teleporting in Easy mode
+		"teleport_enabled": false,
+		"teleport_cooldown_min": 0.0,
+		"teleport_cooldown_max": 0.0,
+		"teleport_warning_min": 0.0,
+		"teleport_warning_max": 0.0,
+		"teleport_min_range": 0,
+		"teleport_max_range": 0,
+		"teleport_style_weights": {},
 	},
 
 	"Medium": {
@@ -53,6 +63,29 @@ var difficulty_params := {
 
 		"spawn_delay_min": 0.0,
 		"spawn_delay_max": 0.3,
+		
+		# Medium mode has predictable assassin teleportation
+		"teleport_enabled": true,
+
+		# Less frequent, forgiving
+		"teleport_cooldown_min": 8.0,
+		"teleport_cooldown_max": 12.0,
+
+		# Longer telegraph for fairness
+		"teleport_warning_min": 0.55,
+		"teleport_warning_max": 0.75,
+
+		# Closer teleports, not too aggressive
+		"teleport_min_range": 3,
+		"teleport_max_range": 5,
+
+		# Safe teleports only
+		"teleport_style_weights": {
+			"AMBUSH_BEHIND": 0.45,
+			"RANDOM_NEAR": 0.45,
+			"FLANK": 0.10,
+			"PREDICTIVE": 0.0,
+		},
 	},
 
 	"Hard": {
@@ -70,6 +103,29 @@ var difficulty_params := {
 
 		"spawn_delay_min": 0.0,
 		"spawn_delay_max": 0.2,
+		
+		# Hard mode teleportation made scary
+		"teleport_enabled": true,
+
+		# More frequent teleports
+		"teleport_cooldown_min": 5.0,
+		"teleport_cooldown_max": 8.0,
+
+		# Faster telegraph
+		"teleport_warning_min": 0.35,
+		"teleport_warning_max": 0.55,
+
+		# Can teleport both close and medium distances
+		"teleport_min_range": 1,
+		"teleport_max_range": 8,
+
+		# All four teleport styles unlocked
+		"teleport_style_weights": {
+			"AMBUSH_BEHIND": 0.25,
+			"RANDOM_NEAR": 0.25,
+			"FLANK": 0.25,
+			"PREDICTIVE": 0.25,
+		},
 	},
 }
 
@@ -115,5 +171,58 @@ func generate_enemy(difficulty: String) -> Dictionary:
 	params["spawn_delay"] = rng.randf_range(
 		bounds["spawn_delay_min"], bounds["spawn_delay_max"]
 	)
+	
+		# --- Teleport PCG (Assassin only) ---
+	var teleport_config := {}
+
+	var tmin = bounds["teleport_cooldown_min"]
+	var tmax = bounds["teleport_cooldown_max"]
+	teleport_config["teleport_enabled"] = bounds["teleport_enabled"]
+	teleport_config["teleport_cooldown"] = rng.randf_range(tmin, tmax)
+
+	teleport_config["teleport_warning"] = rng.randf_range(
+		bounds["teleport_warning_min"],
+		bounds["teleport_warning_max"]
+	)
+
+	# Range in tiles (converted later in AI)
+	teleport_config["teleport_min_range"] = bounds["teleport_min_range"]
+	teleport_config["teleport_max_range"] = bounds["teleport_max_range"]
+
+	# Weighted random style
+	teleport_config["teleport_style"] = "AMBUSH_BEHIND"
+
+	# Stylish word (PCG)
+	teleport_config["teleport_word"] = "Ambush!"
+
+	params["teleport"] = teleport_config
 
 	return params
+	
+
+func _choose_weighted_style(weights: Dictionary) -> String:
+	var total := 0.0
+	for k in weights.keys():
+		total += weights[k]
+
+	var roll := rng.randf() * total
+	var cumulative := 0.0
+
+	for k in weights.keys():
+		cumulative += weights[k]
+		if roll <= cumulative:
+			return k
+	
+	return "RANDOM_NEAR"  # default fallback
+	
+
+const TELEPORT_WORDS := {
+	"AMBUSH_BEHIND": ["Ambush!", "Behind You!", "Sneak!"],
+	"RANDOM_NEAR": ["Jackpot!", "Surprise!", "Pop!"],
+	"FLANK": ["Flank!", "Side Hit!", "Slide!"],
+	"PREDICTIVE": ["Read You!", "Got You!", "Predict!"],
+}
+
+func _choose_teleport_word(style: String) -> String:
+	var arr = TELEPORT_WORDS.get(style, ["Teleport!"])
+	return arr[rng.randi_range(0, arr.size() - 1)]

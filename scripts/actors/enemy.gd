@@ -250,3 +250,8 @@ func init_from_pcg(params: Dictionary) -> void:
 		self.disable()
 		await get_tree().create_timer(pcg_spawn_delay).timeout
 		self.enable()
+		
+	# Assassin teleport PCG (only for EnemyAIAssassin)
+	if enemy_ai is EnemyAIAssassin and params.has("teleport"):
+		var assassin_ai := enemy_ai as EnemyAIAssassin
+		assassin_ai.apply_pcg_teleport_config(params["teleport"])

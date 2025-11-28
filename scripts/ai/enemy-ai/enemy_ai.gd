@@ -310,7 +310,6 @@ func _initialize():
 	is_initialized = true
 	self.initialized.emit()
 
-
 func _ready() -> void:
 	assert(enemy != null)
 	self.disable()
@@ -320,7 +319,6 @@ func _ready() -> void:
 
 func _physics_process(_delta: float) -> void:
 	enemy.direction = to_local(nav_agent.get_next_path_position()).normalized()
-
 
 func _on_pathfinding_update_timer_timeout() -> void:
 	# --------------------------------------------
