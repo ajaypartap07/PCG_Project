@@ -10,13 +10,13 @@ config_version=5
 
 [application]
 
-config/name="Zep Man"
+config/name="P.C.G. (Pellet Collecting Goober)"
 config/version="0.1.0"
 run/main_scene="uid://y77tiqbb52l6"
 config/features=PackedStringArray("4.5", "Forward Plus")
-config/icon="res://miscellaneous/icons/icon_512x512.png"
-config/macos_native_icon="res://miscellaneous/icons/icon_512x512.icns"
-config/windows_native_icon="res://miscellaneous/icons/icon_512x512.ico"
+config/icon="uid://ruvp2aqhqu2u"
+config/macos_native_icon="res://miscellaneous/icons/ghost-pink.icns"
+config/windows_native_icon="res://miscellaneous/icons/pcg.ico"
 
 [audio]
 
