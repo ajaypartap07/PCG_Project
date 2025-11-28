@@ -1,0 +1,4 @@
+res://scenes/pickables/pellet.tscn
+res://resources/themes/main_theme.tres
+res://resources/atlas-textures/pellet_texture.tres
+res://scenes/pickables/power_pellet.tscn

@@ -11,7 +11,7 @@ score_value = 10
 sound_file_path = "res://assets/audio/pellet_picked_up.wav"
 
 [node name="Sprite2D" parent="." index="0"]
-modulate = Color(0.643439, 0.0615972, 0.962822, 1)
+modulate = Color(1.1551381e-06, 0.85120773, 0.33716553, 1)
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_p2sk3")
 
