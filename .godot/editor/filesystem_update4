@@ -2,3 +2,11 @@ res://scenes/pickables/pellet.tscn
 res://resources/themes/main_theme.tres
 res://resources/atlas-textures/pellet_texture.tres
 res://scenes/pickables/power_pellet.tscn
+res://scripts/PCG_Factory/pcg_manager.gd
+res://autoloads/scripts/global.gd
+res://scripts/pickables/pickable.gd
+res://scripts/actors/player.gd
+res://scripts/actors/enemy.gd
+res://scripts/ai/enemy-ai/enemy_ai_assassin.gd
+res://scripts/ai/enemy-ai/components/bourrin_elroy_mode.gd
+res://README.md

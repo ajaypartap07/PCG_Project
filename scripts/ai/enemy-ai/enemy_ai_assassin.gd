@@ -1,35 +1,40 @@
 extends EnemyAI
 class_name EnemyAIAssassin
 
+# Sound played when the assassin actually teleports
 @export_file("*.wav", "*.ogg") var teleport_sound_file: String = "res://assets/audio/teleport.wav"
 
 # === TELEPORT PCG DATA (filled by EnemyPCGFactory / PCGManager) ===
 var teleport_enabled: bool = false
-var teleport_cooldown: float = 8.0
-var teleport_warning_time: float = 0.5
-var teleport_min_range: int = 3
-var teleport_max_range: int = 6
+var teleport_cooldown: float = 8.0        # seconds between teleports
+var teleport_warning_time: float = 0.5    # how long the warning flash lasts
+var teleport_min_range: int = 3           # in tiles
+var teleport_max_range: int = 6           # in tiles
 var teleport_style: String = "RANDOM_NEAR"
 var teleport_word: String = "Teleport!"
 
 # Internal state
-var _teleport_ready: bool = true
-var _teleport_pending: bool = false
-var teleport_timer: Timer
+var _teleport_ready: bool = true          # can we start a teleport?
+var _teleport_pending: bool = false       # currently in warning / executing
+var teleport_timer: Timer                 # cooldown timer
 
 # Used to restore color after warning flash
 var _saved_modulate: Color = Color(1, 1, 1, 1)
 
+# Per-teleport style weights coming from PCG
 var teleport_style_weights: Dictionary = {}
 
 const TELEPORT_WORDS := {
 	"AMBUSH_BEHIND": ["Ambush!", "Behind You!", "Sneak!"],
-	"RANDOM_NEAR": ["Jackpot!", "Surprise!", "Pop!"],
-	"FLANK": ["Flank!", "Side Hit!", "Slide!"],
-	"PREDICTIVE": ["Read You!", "Got You!", "Predict!"],
+	"RANDOM_NEAR":   ["Jackpot!", "Surprise!", "Pop!"],
+	"FLANK":         ["Flank!", "Side Hit!", "Slide!"],
+	"PREDICTIVE":    ["Read You!", "Got You!", "Predict!"],
 }
 
-# === BASE BEHAVIOUR OVERRIDES ===
+# -------------------------------------------------------------------
+# BASE BEHAVIOUR OVERRIDES
+# -------------------------------------------------------------------
+
 func __update_chase_target_position() -> void:
 	# Original assassin behaviour: target a few tiles ahead of player.
 	chase_target_position = chase_target.global_position + (chase_target.direction * tile_size * 4)
@@ -43,43 +48,65 @@ func set_scatter_time(value: float) -> void:
 	scatter_duration = value
 
 
-# === TELEPORT COOLDOWN CALLBACK ===
+# -------------------------------------------------------------------
+# TELEPORT COOLDOWN CALLBACK
+# -------------------------------------------------------------------
+
 func _on_teleport_cooldown_finished() -> void:
 	_teleport_ready = true
 
 
-# === APPLY PCG CONFIG (called from PCGManager) ===
+# -------------------------------------------------------------------
+# APPLY PCG CONFIG (called from PCGManager)
+# This is where bad values could previously give timers a 0 / negative
+# wait_time and crash. Now everything is clamped to safe minimums.
+# -------------------------------------------------------------------
+
 func apply_pcg_teleport_config(cfg: Dictionary) -> void:
-	teleport_enabled = cfg["teleport_enabled"]
+	teleport_enabled = cfg.get("teleport_enabled", false)
 
-	# Cooldowns & warning are still PCG'd
+	# --- Cooldown (seconds between teleports) ---
+	var cd: float
 	if cfg.has("teleport_cooldown_min"):
-		teleport_cooldown = randf_range(
-			cfg["teleport_cooldown_min"],
-			cfg["teleport_cooldown_max"]
+		cd = randf_range(
+			float(cfg["teleport_cooldown_min"]),
+			float(cfg["teleport_cooldown_max"])
 		)
 	else:
-		teleport_cooldown = cfg["teleport_cooldown"]
+		cd = float(cfg.get("teleport_cooldown", teleport_cooldown))
 
+	# Never allow zero / negative cooldown – Timer would assert
+	teleport_cooldown = max(cd, 0.1)
+
+	# --- Warning time (how long the assassin flashes before blink) ---
+	var warn: float
 	if cfg.has("teleport_warning_min"):
-		teleport_warning_time = randf_range(
-			cfg["teleport_warning_min"],
-			cfg["teleport_warning_max"]
+		warn = randf_range(
+			float(cfg["teleport_warning_min"]),
+			float(cfg["teleport_warning_max"])
 		)
 	else:
-		teleport_warning_time = cfg["teleport_warning"]
+		warn = float(cfg.get("teleport_warning", teleport_warning_time))
 
-	teleport_min_range = cfg["teleport_min_range"]
-	teleport_max_range = cfg["teleport_max_range"]
+	# Also clamp this – used inside create_timer(warn)
+	teleport_warning_time = max(warn, 0.05)
 
-	# NEW: store weights so we can roll style per teleport
+	# --- Ranges in tiles (with defaults if PCG didn’t send them) ---
+	teleport_min_range = int(cfg.get("teleport_min_range", teleport_min_range))
+	teleport_max_range = int(cfg.get("teleport_max_range", teleport_max_range))
+
+	# Store weights so we can roll a style per teleport
 	teleport_style_weights = cfg.get("teleport_style_weights", {})
 
+	# If our cooldown timer already exists, update it
 	if teleport_timer:
 		teleport_timer.wait_time = teleport_cooldown
 
 
-# === READY ===
+# -------------------------------------------------------------------
+# READY
+# -------------------------------------------------------------------
+
 func _ready() -> void:
 	# Call EnemyAI._ready() first so base logic works.
 	super._ready()
@@ -89,9 +116,13 @@ func _ready() -> void:
 	teleport_timer.one_shot = true
 	add_child(teleport_timer)
 	teleport_timer.timeout.connect(_on_teleport_cooldown_finished)
+	teleport_timer.wait_time = teleport_cooldown
 
 
-# === MAIN LOOP HOOK ===
+# -------------------------------------------------------------------
+# MAIN LOOP HOOK
+# -------------------------------------------------------------------
+
 func _physics_process(delta: float) -> void:
 	# Let base AI handle pathfinding / normal movement.
 	super._physics_process(delta)
@@ -100,12 +131,15 @@ func _physics_process(delta: float) -> void:
 		_check_teleport_trigger()
 
 
-# === TRIGGER LOGIC ===
+# -------------------------------------------------------------------
+# TRIGGER LOGIC
+# -------------------------------------------------------------------
+
 func _check_teleport_trigger() -> void:
 	if not _teleport_ready:
 		return
 
-	# Avoid unfair teleports.
+	# Avoid unfair teleports while vulnerable or eaten.
 	if current_state == States.FRIGHTENED:
 		return
 	if current_state == States.EATEN:
@@ -137,7 +171,7 @@ func _start_teleport() -> void:
 	# Freeze movement while "charging" the teleport.
 	enemy.can_move = false
 	
-	# roll a fresh style for this teleport using PCG weights
+	# Roll a fresh style for this teleport using PCG weights
 	if teleport_style_weights.size() > 0:
 		teleport_style = _choose_weighted_style(teleport_style_weights)
 	else:
@@ -149,7 +183,10 @@ func _start_teleport() -> void:
 	_do_teleport_sequence()
 
 
-# === TELEPORT SEQUENCE (warning -> teleport) ===
+# -------------------------------------------------------------------
+# TELEPORT SEQUENCE (warning -> teleport)
+# -------------------------------------------------------------------
+
 func _do_teleport_sequence() -> void:
 	# Short warning time so player can react.
 	await get_tree().create_timer(teleport_warning_time).timeout
@@ -160,10 +197,9 @@ func _do_teleport_sequence() -> void:
 		enemy.global_position = target_pos
 		print("[Assassin] Teleport (", teleport_style, ") -> ", target_pos, " [", teleport_word, "]")
 
-		# === PLAY TELEPORT SOUND ===
+		# Play teleport sound
 		if teleport_sound_file != "":
 			AudioManager.play_sound_file(teleport_sound_file, AudioManager.TrackTypes.ENEMIES)
-
 	else:
 		print("[Assassin] Teleport cancelled (no valid tile).")
 
@@ -173,7 +209,10 @@ func _do_teleport_sequence() -> void:
 	_teleport_pending = false
 
 
-# === TELEPORT DESTINATION SELECTION ===
+# -------------------------------------------------------------------
+# TELEPORT DESTINATION SELECTION
+# -------------------------------------------------------------------
+
 func _compute_teleport_position() -> Vector2:
 	print("DEBUG: compute_teleport_position using style = ", teleport_style)
 	# We work in tile space and convert back to world.
@@ -192,7 +231,9 @@ func _compute_teleport_position() -> Vector2:
 			return _compute_random_near_position(player_cell)
 
 
-# === STYLE HELPERS ===
+# -------------------------------------------------------------------
+# STYLE HELPERS
+# -------------------------------------------------------------------
 
 func _compute_random_near_position(player_cell: Vector2i) -> Vector2:
 	var candidates: Array[Vector2i] = _get_cells_in_range(player_cell, teleport_min_range, teleport_max_range)
@@ -283,7 +324,9 @@ func _compute_predictive_position(player_cell: Vector2i) -> Vector2:
 	return _pick_closest_to_cell(predicted_cell, candidates)
 
 
-# === LOW-LEVEL TILE HELPERS ===
+# -------------------------------------------------------------------
+# LOW-LEVEL TILE HELPERS
+# -------------------------------------------------------------------
 
 # Get all walkable cells within [min_r, max_r] distance of center_cell.
 func _get_cells_in_range(center_cell: Vector2i, min_r: int, max_r: int) -> Array[Vector2i]:
@@ -312,6 +355,28 @@ func _pick_world_position_from_cells(cells: Array[Vector2i]) -> Vector2:
 	var cell: Vector2i = cells[idx]
 	return tile_map_layer.map_to_local(cell)
 
+
+func _pick_closest_to_cell(target_cell: Vector2i, cells: Array[Vector2i]) -> Vector2:
+	if cells.is_empty():
+		return Vector2.ZERO
+
+	var best_cell: Vector2i = cells[0]
+	var best_dist := float((best_cell - target_cell).length())
+
+	for i in range(1, cells.size()):
+		var c: Vector2i = cells[i]
+		var d := float((c - target_cell).length())
+		if d < best_dist:
+			best_dist = d
+			best_cell = c
+
+	return tile_map_layer.map_to_local(best_cell)
+
+
+# -------------------------------------------------------------------
+# STYLE / FLAVOUR HELPERS
+# -------------------------------------------------------------------
+
 func _choose_weighted_style(weights: Dictionary) -> String:
 	var total := 0.0
 	for k in weights.keys():
@@ -334,19 +399,3 @@ func _choose_weighted_style(weights: Dictionary) -> String:
 func _choose_teleport_word(style: String) -> String:
 	var arr = TELEPORT_WORDS.get(style, ["Teleport!"])
 	return arr[randi() % arr.size()]
-
-func _pick_closest_to_cell(target_cell: Vector2i, cells: Array[Vector2i]) -> Vector2:
-	if cells.is_empty():
-		return Vector2.ZERO
-
-	var best_cell: Vector2i = cells[0]
-	var best_dist := float((best_cell - target_cell).length())
-
-	for i in range(1, cells.size()):
-		var c: Vector2i = cells[i]
-		var d := float((c - target_cell).length())
-		if d < best_dist:
-			best_dist = d
-			best_cell = c
-
-	return tile_map_layer.map_to_local(best_cell)
